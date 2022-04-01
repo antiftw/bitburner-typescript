@@ -1,4 +1,4 @@
-import { NS, Server } from "@ns";
+import { NS } from "@ns";
 import { getStats } from "/modules/helper";
 
 interface Flags {
