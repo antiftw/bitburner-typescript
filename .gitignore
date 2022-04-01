@@ -1,5 +1,14 @@
+# node modules
 node_modules/
+
+# generated output
 dist/
+
+# definitions pulled through script
 NetscriptDefinitions.d.ts
 
+# contains auth token
 settings.json
+
+# for testing purposes only
+test.ts
