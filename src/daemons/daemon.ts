@@ -1,15 +1,15 @@
 import { NS, Server } from "@ns";
 import { getStats } from "/modules/helper";
 
-const flags = {
-  finishedDeploy: false,
-  purchasedServers: false,
-  launchedUpgrades: false,
-  upgradedServers: false,
-  launchedCorpDaemon: false,
-};
+interface Flags {
+  finishedDeploy: boolean;
+  purchasedServers: boolean;
+  launchedUpgrades: boolean;
+  upgradedServers: boolean;
+  launchedCorpDaemon: boolean;
+}
 
-function handleP1Message(ns: NS, message: string | number): void {
+function handleP1Message(ns: NS, message: string | number, flags: Flags): void {
   // attempt to parse port message
   try {
     if (typeof message === "number") {
@@ -52,6 +52,15 @@ export async function main(ns: NS): Promise<void> {
   // parse command line args
   const args = ns.flags([["loop", true]]);
 
+  // constants used as signals
+  const flags = {
+    finishedDeploy: false,
+    purchasedServers: false,
+    launchedUpgrades: false,
+    upgradedServers: false,
+    launchedCorpDaemon: false,
+  } as Flags;
+
   // we do our own logging
   ns.disableLog("ALL");
   ns.print("----------Staring main daemon----------");
@@ -66,7 +75,7 @@ export async function main(ns: NS): Promise<void> {
   ns.print("Launched purchase-servers");
   await ns.sleep(1000);
 
-  // main loop
+  // variables used in main loop
   const p1Handle = ns.getPortHandle(1);
   const hackTargets = [
     "foodnstuff",
@@ -84,13 +93,22 @@ export async function main(ns: NS): Promise<void> {
   ];
   const claimedServers = [];
   let stats = getStats(ns, ["home", ...hackTargets]);
+
+  // sort hackTargets
+  hackTargets.sort(
+    (a, b) =>
+      stats.servers[a].requiredHackingSkill -
+      stats.servers[b].requiredHackingSkill
+  );
+
+  // main loop
   do {
     // update stats
     stats = getStats(ns, ["home", ...hackTargets]);
 
     // read port 1 for global updates
     if (p1Handle.peek() !== "NULL PORT DATA") {
-      handleP1Message(ns, p1Handle.read());
+      handleP1Message(ns, p1Handle.read(), flags);
     }
 
     // launch upgrades when servers are fully purchased
@@ -106,7 +124,7 @@ export async function main(ns: NS): Promise<void> {
         "--maxRam",
         maxRam
       );
-      ns.print("Launched purchase-servers");
+      ns.print("Launched upgrade-servers");
       await ns.sleep(1000);
     }
 
@@ -118,11 +136,7 @@ export async function main(ns: NS): Promise<void> {
       stats.servers["home"].maxRam - stats.servers["home"].ramUsed >
         ns.getScriptRam("daemons/hack-daemon.js", "home")
     ) {
-      const targetsStats = hackTargets.map((s) => stats.servers[s] as Server);
-      targetsStats.sort((a, b) => {
-        return a.requiredHackingSkill - b.requiredHackingSkill;
-      });
-      const t = targetsStats.shift() as Server;
+      const t = stats.servers[hackTargets[0]];
 
       if (stats.player.hacking > t.requiredHackingSkill) {
         const host1 = `pserv-${claimedServers.length + 1}` as string;
