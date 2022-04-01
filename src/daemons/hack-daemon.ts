@@ -302,6 +302,10 @@ export async function main(ns: NS): Promise<void> {
 
     // calc grow effect for max ram
     const gThreads = Math.floor(maxRamChunk / growScript.ram);
+    if (gThreads <= 0) {
+      ns.print(`Grow threads calculated at ${gThreads}, skipping`);
+      continue;
+    }
     const gTime = ns.formulas.hacking.growTime(
       stats.servers[args["target"]],
       stats.player
@@ -325,6 +329,10 @@ export async function main(ns: NS): Promise<void> {
       stats.servers[args["target"]] as Server,
       stats.player
     );
+    if (hThreads <= 0) {
+      ns.print(`Hack threads calculated at ${gThreads}, skipping`);
+      continue;
+    }
 
     // find threads of weaken to offset hack and grow
     const hOffsetThreads = Math.ceil(
