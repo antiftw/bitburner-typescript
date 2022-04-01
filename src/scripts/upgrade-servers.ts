@@ -23,10 +23,10 @@ export async function main(ns: NS): Promise<void> {
     ns.print(`Upgrading to ${ram} ram. Running ${threads} threads.`);
 
     // if it will take too long to upgrade all servers, exit now
-    const [income] = ns.getScriptIncome();
+    const income = Math.max(...ns.getScriptIncome()); //maximum of current and since aug (in case it hasn't smoothed out yet)
     const upgradeLevelCost = cost * servers.length;
     const earnedIncome = income * maxMinutesPerLevel * 60;
-    if (upgradeLevelCost > earnedIncome) {
+    if (upgradeLevelCost > earnedIncome + ns.getPlayer().money) {
       ns.print(`Upgrade will take ${ns.nFormat(upgradeLevelCost, "$0.0a")}.`);
       ns.print(
         `Only earn ${ns.nFormat(
