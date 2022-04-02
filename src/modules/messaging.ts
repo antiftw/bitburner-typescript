@@ -9,6 +9,7 @@ function hashCode(s: string): number {
 
 export interface Message<T> {
   hash: number;
+  timeSent: number;
   source: string;
   text: string;
   data: T;
@@ -26,6 +27,7 @@ export function createMessage<T>(
 ): Message<T> {
   return {
     hash: hashCode(source + text + JSON.stringify(data)),
+    timeSent: Date.now(),
     source,
     text,
     data,

@@ -1,6 +1,8 @@
 import { NS } from "@ns";
 import { packMessage, unpackMessage } from "/modules/messaging";
 
+const timeToExpiration = 250;
+
 export async function main(ns: NS): Promise<void> {
   // we do our own logging
   ns.disableLog("ALL");
@@ -13,8 +15,17 @@ export async function main(ns: NS): Promise<void> {
 
   // handle incoming service requests
   while (true) {
-    // check for port data, if not from us, it's for us
+    // check for port data, discarding bad data and old messages
     const parsed = unpackMessage<number>(ns, p2Handle.peek());
+    if (
+      (!p2Handle.empty() && parsed === undefined) || // message we are unable to parse
+      (parsed && Date.now() - parsed.timeSent > timeToExpiration) // old message, not handled
+    ) {
+      p2Handle.read();
+      continue;
+    }
+
+    // if it's not from us, it's for us
     if (parsed && parsed.source !== ns.getScriptName()) {
       p2Handle.read(); // consume message
 
@@ -30,8 +41,6 @@ export async function main(ns: NS): Promise<void> {
       });
       p2Handle.write(response);
       ns.print(`Responded with ${response}`);
-    }
-
-    await ns.sleep(1);
+    } else if (parsed && Date.now() - parsed.timeSent) await ns.sleep(1);
   }
 }
