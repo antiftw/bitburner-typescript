@@ -63,7 +63,7 @@ export async function main(ns: NS): Promise<void> {
 
   // we do our own logging
   ns.disableLog("ALL");
-  ns.print("----------Staring main daemon----------");
+  ns.print("----------Starting main daemon----------");
 
   // continuously deploy hack script as we acquire new port cracking programs
   ns.exec("scripts/continuous-deploy.js", "home", 1, "--target", "n00dles");

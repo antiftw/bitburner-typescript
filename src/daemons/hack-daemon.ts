@@ -91,13 +91,14 @@ async function growToMaxMoney(
         stats.player
       );
       hostsInfo.forEach((host) => {
-        ns.exec(
-          scripts.weakenScript.name,
-          host.hostname,
-          host.wThreads,
-          "--target",
-          target
-        );
+        if (host.wThreads > 0)
+          ns.exec(
+            scripts.weakenScript.name,
+            host.hostname,
+            host.wThreads,
+            "--target",
+            target
+          );
       });
       ns.print(
         `Weakening server to drop security by ${
@@ -118,13 +119,14 @@ async function growToMaxMoney(
         stats.player
       );
       hostsInfo.forEach((host) => {
-        ns.exec(
-          scripts.growScript.name,
-          host.hostname,
-          host.gThreads,
-          "--target",
-          target
-        );
+        if (host.gThreads > 0)
+          ns.exec(
+            scripts.growScript.name,
+            host.hostname,
+            host.gThreads,
+            "--target",
+            target
+          );
       });
       ns.print(`Growing server with ${totals.gThreads} threads`);
 
@@ -174,13 +176,14 @@ async function reduceToMinSecurity(
       stats.player
     );
     hostsInfo.forEach((host) => {
-      ns.exec(
-        scripts.weakenScript.name,
-        host.hostname,
-        host.wThreads,
-        "--target",
-        target
-      );
+      if (host.wThreads > 0)
+        ns.exec(
+          scripts.weakenScript.name,
+          host.hostname,
+          host.wThreads,
+          "--target",
+          target
+        );
     });
     ns.print(
       `Weakening server to drop security by ${
@@ -213,7 +216,7 @@ export async function main(ns: NS): Promise<void> {
 
   // we do our own logging
   ns.disableLog("ALL");
-  ns.print("----------Staring hack-daemon----------");
+  ns.print("----------Starting hack-daemon----------");
 
   // copy scripts to hosts
   const hackScript = {
