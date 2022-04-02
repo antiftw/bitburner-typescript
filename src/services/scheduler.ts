@@ -41,6 +41,8 @@ export async function main(ns: NS): Promise<void> {
       });
       p2Handle.write(response);
       ns.print(`Responded with ${response}`);
-    } else if (parsed && Date.now() - parsed.timeSent) await ns.sleep(1);
+    }
+
+    await ns.sleep(1);
   }
 }
