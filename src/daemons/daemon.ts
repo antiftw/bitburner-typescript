@@ -75,6 +75,11 @@ export async function main(ns: NS): Promise<void> {
   ns.print("Launched purchase-servers");
   await ns.sleep(1000);
 
+  // put up the stats UI
+  ns.exec("scripts/overview-stats.js", "home", 1);
+  ns.print("Launched overview-stats");
+  await ns.sleep(1000);
+
   // variables used in main loop
   const p1Handle = ns.getPortHandle(1);
   const hackTargets = [
