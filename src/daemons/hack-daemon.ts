@@ -1,6 +1,13 @@
 import { NS, Server } from "@ns";
 import { getStats } from "/modules/helper.js";
-import { Job, ScriptInfo, ScriptsInfo } from "/types.js";
+import { createMessage, sendReceive } from "/modules/messaging";
+import {
+  Job,
+  SchedulerRequest,
+  SchedulerResponse,
+  ScriptInfo,
+  ScriptsInfo,
+} from "/types.js";
 
 const weakenSecurityEffect = 0.05;
 const growSecurityEffect = 0.004;
@@ -48,13 +55,25 @@ export async function main(ns: NS): Promise<void> {
   }
 
   // grow target to max money (while keeping security low)
-  await growToMaxMoney(
-    ns,
-    args["target"],
-    args["hosts"],
-    args["ramBudget"],
-    scripts
-  );
+  if (args["useScheduler"]) {
+    await growToMaxMoney(
+      ns,
+      args["target"],
+      args["hosts"],
+      args["ramBudget"],
+      scripts,
+      true,
+      args["schedulerPort"]
+    );
+  } else {
+    await growToMaxMoney(
+      ns,
+      args["target"],
+      args["hosts"],
+      args["ramBudget"],
+      scripts
+    );
+  }
 
   // reduce target to minimum security level
   await reduceToMinSecurity(
@@ -295,12 +314,56 @@ async function sleepUntil(ns: NS, timeMS: number, useAsleep = false) {
   }
 }
 
+async function runWithScheduler(
+  ns: NS,
+  threads: number,
+  script: ScriptInfo,
+  executionTimeMS: number,
+  schedulerPort: number,
+  scriptArgs: string[]
+): Promise<void> {
+  const now = Date.now();
+  const schedulerMessage = createMessage(
+    ns.getScriptName(),
+    "Scheduler request",
+    {
+      ram: threads * script.ram,
+      startTime: now,
+      endTime: now + scheduleBufferTime + executionTimeMS + executeBufferTime,
+    } as SchedulerRequest
+  );
+  const schedulerResponse = await sendReceive<
+    SchedulerRequest,
+    SchedulerResponse
+  >(ns, schedulerPort, schedulerMessage);
+
+  if (schedulerResponse && schedulerResponse.data.data.success) {
+    ns.exec(
+      script.name,
+      schedulerResponse.data.data.host as string,
+      threads,
+      ...scriptArgs
+    );
+    ns.print(
+      `Executing ${script.name} on ${
+        schedulerResponse.data.data.host
+      } for ${ns.nFormat(
+        schedulerMessage.data.endTime - schedulerMessage.data.startTime,
+        "0.0"
+      )}ms`
+    );
+    await sleepUntil(ns, schedulerResponse.data.data.endTime);
+  }
+}
+
 async function growToMaxMoney(
   ns: NS,
   target: string,
   hosts: string[],
   ramBudget: number,
-  scripts: ScriptsInfo
+  scripts: ScriptsInfo,
+  useScheduler = false,
+  schedulerPort = 0
 ) {
   let stats = getStats(ns, [target, ...hosts]);
   ns.print(`Growing ${target} to maximum money`);
@@ -308,88 +371,139 @@ async function growToMaxMoney(
     stats.servers[target].moneyAvailable < stats.servers[target].moneyMax
   ) {
     printServerStats(ns, stats.servers[target]);
-    const hostsInfo = hosts.map((s) => {
-      const ramAvail =
-        (stats.servers[s].maxRam - stats.servers[s].ramUsed) * ramBudget;
-      return {
-        hostname: s,
-        ramAvail: ramAvail,
-        wThreads: Math.floor(ramAvail / scripts.weakenScript.ram),
-        gThreads: Math.floor(ramAvail / scripts.growScript.ram),
-      };
-    });
-    const totals = hostsInfo.reduce((a, b) => {
-      return {
-        hostname: "",
-        ramAvail: a.ramAvail + b.ramAvail,
-        wThreads: a.wThreads + b.wThreads,
-        gThreads: a.gThreads + b.gThreads,
-      };
-    });
-    ns.print(`Will use ${totals.ramAvail}GB across ${hosts.length} hosts.`);
-    ns.print(`wThreads: ${totals.wThreads}, gThreads ${totals.gThreads}`);
 
-    // if weaken will have full effect or security is too high
-    if (
-      stats.servers[target].hackDifficulty /
-        stats.servers[target].minDifficulty >
-        1.5 ||
-      stats.servers[target].hackDifficulty -
-        weakenSecurityEffect * totals.wThreads >
-        stats.servers[target].minDifficulty
-    ) {
-      const wTime = ns.formulas.hacking.weakenTime(
-        stats.servers[target],
-        stats.player
+    if (useScheduler && schedulerPort > 0) {
+      const ramMessage = createMessage(
+        ns.getScriptName() + JSON.stringify(ns.args),
+        "Max ram request",
+        0
       );
-      hostsInfo.forEach((host) => {
-        if (host.wThreads > 0)
-          ns.exec(
-            scripts.weakenScript.name,
-            host.hostname,
-            host.wThreads,
-            "--target",
-            target
-          );
-      });
-      ns.print(
-        `Weakening server to drop security by ${
-          weakenSecurityEffect * totals.wThreads
-        }`
+      const res = await sendReceive<number, number>(
+        ns,
+        schedulerPort,
+        ramMessage
       );
+      const maxRam = res?.data.data ?? 0;
 
-      ns.print(
-        `Sleeping ${Math.ceil(
-          wTime + scheduleBufferTime
-        )}ms until weaken is finished`
-      );
-      await ns.sleep(Math.ceil(wTime + scheduleBufferTime));
+      if (
+        stats.servers[target].hackDifficulty /
+          stats.servers[target].minDifficulty >
+        1.5
+      ) {
+        // weaken server
+        const wThreads = Math.floor(maxRam / scripts.weakenScript.ram);
+        const wTime = Math.ceil(
+          ns.formulas.hacking.weakenTime(stats.servers[target], stats.player)
+        );
+        await runWithScheduler(
+          ns,
+          wThreads,
+          scripts.weakenScript,
+          wTime,
+          schedulerPort,
+          ["--target", target, "--id", `${new Date(Date.now()).toISOString()}`]
+        );
+      } else {
+        // weaken server
+        const gThreads = Math.floor(maxRam / scripts.growScript.ram);
+        const gTime = ns.formulas.hacking.growTime(
+          stats.servers[target],
+          stats.player
+        );
+        await runWithScheduler(
+          ns,
+          gThreads,
+          scripts.growScript,
+          gTime,
+          schedulerPort,
+          ["--target", target, "--id", `${new Date(Date.now()).toISOString()}`]
+        );
+      }
     } else {
-      // otherwise, continue to grow
-      const gTime = ns.formulas.hacking.growTime(
-        stats.servers[target],
-        stats.player
-      );
-      hostsInfo.forEach((host) => {
-        if (host.gThreads > 0)
-          ns.exec(
-            scripts.growScript.name,
-            host.hostname,
-            host.gThreads,
-            "--target",
-            target
-          );
+      const hostsInfo = hosts.map((s) => {
+        const ramAvail =
+          (stats.servers[s].maxRam - stats.servers[s].ramUsed) * ramBudget;
+        return {
+          hostname: s,
+          ramAvail: ramAvail,
+          wThreads: Math.floor(ramAvail / scripts.weakenScript.ram),
+          gThreads: Math.floor(ramAvail / scripts.growScript.ram),
+        };
       });
-      ns.print(`Growing server with ${totals.gThreads} threads`);
+      const totals = hostsInfo.reduce((a, b) => {
+        return {
+          hostname: "",
+          ramAvail: a.ramAvail + b.ramAvail,
+          wThreads: a.wThreads + b.wThreads,
+          gThreads: a.gThreads + b.gThreads,
+        };
+      });
+      ns.print(`Will use ${totals.ramAvail}GB across ${hosts.length} hosts.`);
+      ns.print(`wThreads: ${totals.wThreads}, gThreads ${totals.gThreads}`);
 
-      ns.print(
-        `Sleeping ${Math.ceil(
-          gTime + scheduleBufferTime
-        )}ms until grow is finished`
-      );
-      await ns.sleep(Math.ceil(gTime + scheduleBufferTime));
+      // if weaken will have full effect or security is too high
+      if (
+        stats.servers[target].hackDifficulty /
+          stats.servers[target].minDifficulty >
+          1.5 ||
+        stats.servers[target].hackDifficulty -
+          weakenSecurityEffect * totals.wThreads >
+          stats.servers[target].minDifficulty
+      ) {
+        const wTime = ns.formulas.hacking.weakenTime(
+          stats.servers[target],
+          stats.player
+        );
+        hostsInfo.forEach((host) => {
+          if (host.wThreads > 0)
+            ns.exec(
+              scripts.weakenScript.name,
+              host.hostname,
+              host.wThreads,
+              "--target",
+              target
+            );
+        });
+        ns.print(
+          `Weakening server to drop security by ${
+            weakenSecurityEffect * totals.wThreads
+          }`
+        );
+
+        ns.print(
+          `Sleeping ${Math.ceil(
+            wTime + scheduleBufferTime
+          )}ms until weaken is finished`
+        );
+        await ns.sleep(Math.ceil(wTime + scheduleBufferTime));
+      } else {
+        // otherwise, continue to grow
+        const gTime = ns.formulas.hacking.growTime(
+          stats.servers[target],
+          stats.player
+        );
+        hostsInfo.forEach((host) => {
+          if (host.gThreads > 0)
+            ns.exec(
+              scripts.growScript.name,
+              host.hostname,
+              host.gThreads,
+              "--target",
+              target
+            );
+        });
+        ns.print(`Growing server with ${totals.gThreads} threads`);
+
+        ns.print(
+          `Sleeping ${Math.ceil(
+            gTime + scheduleBufferTime
+          )}ms until grow is finished`
+        );
+        await ns.sleep(Math.ceil(gTime + scheduleBufferTime));
+      }
     }
 
+    await ns.sleep(executeBufferTime);
     stats = getStats(ns, [target, ...hosts]);
   }
   ns.print("-----Target at maximum money-----");
