@@ -1,4 +1,4 @@
-import { NS } from "@ns";
+import { NetscriptPort, NS } from "@ns";
 import { Message, MessageResponse } from "/types";
 
 function hashCode(s: string): number {
@@ -39,7 +39,7 @@ export function unpackMessage<T>(
 
 export async function sendReceive<T, K>(
   ns: NS,
-  port: number,
+  port: number | NetscriptPort,
   message: Message<T>,
   timeout = 500
 ): Promise<Message<MessageResponse<K>> | undefined> {
@@ -47,7 +47,7 @@ export async function sendReceive<T, K>(
   const packedMessage = JSON.stringify(message);
 
   // get port handle
-  const portHandle = ns.getPortHandle(port);
+  const portHandle = typeof port === "number" ? ns.getPortHandle(port) : port;
 
   // write message to port
   while (!portHandle.tryWrite(packedMessage)) await ns.sleep(1);

@@ -36,6 +36,17 @@ export interface ScriptsInfo {
   weakenScript: ScriptInfo;
 }
 
+export interface SchedulerRequest {
+  ram: number;
+  startTime: number;
+  endTime: number;
+}
+
+export interface SchedulerResponse extends SchedulerRequest {
+  success: boolean;
+  host?: string;
+}
+
 export interface Job {
   name: string;
   scriptName: string;
