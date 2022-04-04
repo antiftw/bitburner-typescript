@@ -1,17 +1,6 @@
 import { NS, Server } from "@ns";
 import { getStats } from "/modules/helper.js";
-import { Job } from "/types.js";
-
-interface ScriptInfo {
-  name: string;
-  ram: number;
-}
-
-interface ScriptsInfo {
-  hackScript: ScriptInfo;
-  growScript: ScriptInfo;
-  weakenScript: ScriptInfo;
-}
+import { Job, ScriptInfo, ScriptsInfo } from "/types.js";
 
 const weakenSecurityEffect = 0.05;
 const growSecurityEffect = 0.004;

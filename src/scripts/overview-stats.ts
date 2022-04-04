@@ -4,11 +4,7 @@
  */
 
 import { NS } from "@ns";
-
-interface HUDRow {
-  header: string;
-  fValue: string;
-}
+import { HUDRow } from "/types";
 
 export async function main(ns: NS): Promise<void> {
   ns.disableLog("sleep");

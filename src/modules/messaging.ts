@@ -1,23 +1,11 @@
 import { NS } from "@ns";
+import { Message, MessageResponse } from "/types";
 
 function hashCode(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++)
     h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return h;
-}
-
-export interface Message<T> {
-  hash: number;
-  timeSent: number;
-  source: string;
-  text: string;
-  data: T;
-}
-
-export interface MessageResponse<T> {
-  sourceMessage: Message<T>;
-  data: T;
 }
 
 export function createMessage<T>(

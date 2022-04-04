@@ -1,13 +1,6 @@
 import { NS } from "@ns";
 import { getStats } from "/modules/helper";
-
-interface Flags {
-  finishedDeploy: boolean;
-  purchasedServers: boolean;
-  launchedUpgrades: boolean;
-  upgradedServers: boolean;
-  launchedCorpDaemon: boolean;
-}
+import { Flags } from "/types";
 
 function handleP1Message(ns: NS, message: string | number, flags: Flags): void {
   // attempt to parse port message

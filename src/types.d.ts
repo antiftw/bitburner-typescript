@@ -1,10 +1,32 @@
 import { Player, Server } from "@ns";
 
+export interface Flags {
+  finishedDeploy: boolean;
+  purchasedServers: boolean;
+  launchedUpgrades: boolean;
+  upgradedServers: boolean;
+  launchedCorpDaemon: boolean;
+}
+
+export interface HUDRow {
+  header: string;
+  fValue: string;
+}
+
 export interface Stats {
   player: Player;
-  servers: {
-    [key: string]: Server;
-  };
+  servers: Record<string, Server>;
+}
+
+export interface ScriptInfo {
+  name: string;
+  ram: number;
+}
+
+export interface ScriptsInfo {
+  hackScript: ScriptInfo;
+  growScript: ScriptInfo;
+  weakenScript: ScriptInfo;
 }
 
 export interface Job {
@@ -15,4 +37,17 @@ export interface Job {
   threads: number;
   target: string;
   host: string;
+}
+
+export interface Message<T> {
+  hash: number;
+  timeSent: number;
+  source: string;
+  text: string;
+  data: T;
+}
+
+export interface MessageResponse<T> {
+  sourceMessage: Message<T>;
+  data: T;
 }
