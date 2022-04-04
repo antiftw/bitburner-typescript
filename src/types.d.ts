@@ -1,11 +1,18 @@
 import { Player, Server } from "@ns";
 
+export interface TimedCall {
+  lastCalled: number;
+  callEvery: number;
+  callback: () => Promise<void>;
+}
+
 export interface Flags {
   finishedDeploy: boolean;
   purchasedServers: boolean;
   launchedUpgrades: boolean;
   upgradedServers: boolean;
   launchedCorpDaemon: boolean;
+  timedCalls: TimedCall[];
 }
 
 export interface HUDRow {

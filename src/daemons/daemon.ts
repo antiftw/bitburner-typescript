@@ -1,62 +1,32 @@
 import { NS } from "@ns";
 import { getStats } from "/modules/helper";
-import { Flags } from "/types";
-
-function handleP1Message(ns: NS, message: string | number, flags: Flags): void {
-  // attempt to parse port message
-  try {
-    if (typeof message === "number") {
-      ns.print(message);
-      return;
-    }
-    const parsed = JSON.parse(message);
-    if (typeof parsed !== "object") {
-      ns.print(message);
-      return;
-    }
-
-    // handle parsed message object
-    ns.print(`${parsed.source}: ${parsed.message}`);
-    switch (parsed.source) {
-      case "continuous-deploy":
-        if (parsed.exiting) {
-          flags.finishedDeploy = true;
-        }
-        break;
-      case "purchase-servers":
-        if (parsed.exiting) {
-          flags.purchasedServers = true;
-        }
-        break;
-      case "upgrade-servers":
-        if (parsed.exiting) {
-          flags.upgradedServers = true;
-        }
-        break;
-      default:
-        break;
-    }
-  } catch (e) {
-    ns.print(message);
-  }
-}
+import { Flags, Stats, TimedCall } from "/types";
 
 export async function main(ns: NS): Promise<void> {
   // parse command line args
   const args = ns.flags([["loop", true]]);
 
+  // we do our own logging
+  ns.disableLog("ALL");
+  ns.print("----------Starting main daemon----------");
+
   // constants used as signals
+  let stats = getStats(ns);
+  const timedCalls = [
+    {
+      lastCalled: Date.now(),
+      callEvery: 10 * 60 * 1000,
+      callback: async () => await launchCodingContracts(ns, stats),
+    },
+  ] as TimedCall[];
   const flags = {
     finishedDeploy: false,
     purchasedServers: false,
     launchedUpgrades: false,
     upgradedServers: false,
     launchedCorpDaemon: false,
+    timedCalls: timedCalls,
   } as Flags;
-
-  // we do our own logging
-  ns.disableLog("ALL");
-  ns.print("----------Starting main daemon----------");
 
   // continuously deploy hack script as we acquire new port cracking programs
   ns.exec("scripts/continuous-deploy.js", "home", 1, "--target", "n00dles");
@@ -90,7 +60,7 @@ export async function main(ns: NS): Promise<void> {
     "omega-net",
   ];
   const claimedServers = [];
-  let stats = getStats(ns, ["home", ...hackTargets]);
+  stats = getStats(ns, ["home", ...hackTargets]);
 
   // sort hackTargets
   hackTargets.sort(
@@ -107,6 +77,15 @@ export async function main(ns: NS): Promise<void> {
     // read port 1 for global updates
     if (p1Handle.peek() !== "NULL PORT DATA") {
       handleP1Message(ns, p1Handle.read(), flags);
+    }
+
+    // if it's time, service these functions
+    const now = Date.now();
+    for (const timedCall of flags.timedCalls) {
+      if (now - timedCall.lastCalled > timedCall.callEvery) {
+        await timedCall.callback();
+        timedCall.lastCalled = now;
+      }
     }
 
     // launch upgrades when servers are fully purchased
@@ -177,4 +156,55 @@ export async function main(ns: NS): Promise<void> {
 
     await ns.sleep(100);
   } while (args["loop"]);
+}
+
+async function launchCodingContracts(ns: NS, stats: Stats): Promise<void> {
+  if (
+    stats.servers["home"].maxRam - stats.servers["home"].ramUsed >
+    ns.getScriptRam("/scripts/solve-coding-contracts.js")
+  ) {
+    const pid = ns.exec("/scripts/solve-coding-contracts.js", "home", 1);
+    ns.print(`Launching coding contracts with PID: ${pid}`);
+  } else {
+    ns.print(`Not enough RAM to run solve-coding-contracts`);
+  }
+}
+
+function handleP1Message(ns: NS, message: string | number, flags: Flags): void {
+  // attempt to parse port message
+  try {
+    if (typeof message === "number") {
+      ns.print(message);
+      return;
+    }
+    const parsed = JSON.parse(message);
+    if (typeof parsed !== "object") {
+      ns.print(message);
+      return;
+    }
+
+    // handle parsed message object
+    ns.print(`${parsed.source}: ${parsed.message}`);
+    switch (parsed.source) {
+      case "continuous-deploy":
+        if (parsed.exiting) {
+          flags.finishedDeploy = true;
+        }
+        break;
+      case "purchase-servers":
+        if (parsed.exiting) {
+          flags.purchasedServers = true;
+        }
+        break;
+      case "upgrade-servers":
+        if (parsed.exiting) {
+          flags.upgradedServers = true;
+        }
+        break;
+      default:
+        break;
+    }
+  } catch (e) {
+    ns.print(message);
+  }
 }

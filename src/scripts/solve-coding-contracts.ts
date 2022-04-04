@@ -54,14 +54,16 @@ async function handleContract(
 
     // print output
     const solved = result !== "";
-    const out = `${contractType} - ${solved}: ${JSON.stringify(
+    const contractSummary = `${contractType} - ${solved}: ${JSON.stringify(
       data
     )} -> ${JSON.stringify(solution)}`;
-    ns.print(out);
-    ns.print(`${host} - ${filename} attempted. Rewards: ${result}`);
+    const rewardSummary = `${host} - ${filename} attempted. Rewards: ${result}`;
+    ns.print(contractSummary);
+    ns.print(rewardSummary);
+    if (solved) ns.toast(rewardSummary, "success", 10000);
 
     // write to file
-    await ns.write("/data/coding-contract-attempts.txt", out, "a");
+    await ns.write("/data/coding-contract-attempts.txt", contractSummary, "a");
   } else {
     ns.print(
       `No solver for ${contractType}, not attempting ${host} ${filename}`
