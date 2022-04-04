@@ -25,6 +25,7 @@ export async function main(ns: NS): Promise<void> {
     launchedUpgrades: false,
     upgradedServers: false,
     launchedCorpDaemon: false,
+    schedulerPID: 0,
     timedCalls: timedCalls,
   } as Flags;
 
@@ -52,7 +53,7 @@ export async function main(ns: NS): Promise<void> {
     "hong-fang-tea",
     "harakiri-sushi",
     "iron-gym",
-    "nectar-net",
+    "neo-net",
     "syscore",
     "zer0",
     "max-hardware",
@@ -103,6 +104,11 @@ export async function main(ns: NS): Promise<void> {
       );
       ns.print("Launched upgrade-servers");
       await ns.sleep(1000);
+    }
+
+    // launch scheduler once all scripts are deployed
+    if (flags.finishedDeploy && flags.schedulerPID === 0) {
+      flags.schedulerPID = ns.exec("/services/scheduler.js", "home", 1);
     }
 
     // use pservs for hack daemon rather than basic hack

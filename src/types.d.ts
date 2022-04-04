@@ -12,6 +12,7 @@ export interface Flags {
   launchedUpgrades: boolean;
   upgradedServers: boolean;
   launchedCorpDaemon: boolean;
+  schedulerPID: number;
   timedCalls: TimedCall[];
 }
 
