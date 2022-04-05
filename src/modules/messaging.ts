@@ -71,3 +71,16 @@ export async function sendReceive<T, K>(
 
   return response;
 }
+
+export async function getSchedulerMaxRam(
+  ns: NS,
+  schedulerPort: number
+): Promise<number> {
+  const ramMessage = createMessage(
+    ns.getScriptName() + JSON.stringify(ns.args),
+    "Max ram request",
+    0
+  );
+  const res = await sendReceive<number, number>(ns, schedulerPort, ramMessage);
+  return res?.data.data || 0;
+}

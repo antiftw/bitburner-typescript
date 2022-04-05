@@ -23,6 +23,8 @@ export async function main(ns: NS): Promise<void> {
         "nectar-net",
         "hong-fang-tea",
         "harakiri-sushi",
+        "blade",
+        "omnitek",
       ],
     ],
   ]);

@@ -49,12 +49,15 @@ export interface SchedulerResponse extends SchedulerRequest {
 }
 
 export interface Job {
-  name: string;
   scriptName: string;
   startTime: number;
-  duration: number;
+  endTime: number;
   threads: number;
-  target: string;
+  ram: number;
+  args: string[];
+}
+
+export interface ScheduledJob extends Job {
   host: string;
 }
 
