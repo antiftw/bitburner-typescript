@@ -6,9 +6,11 @@ import {
   SchedulerRequest,
   SchedulerResponse,
   Stats,
+  TimedCall,
 } from "/types";
 
 const timeToExpiration = 250;
+const executeBufferTime = 200;
 
 export async function main(ns: NS): Promise<void> {
   const args = ns.flags([
@@ -33,14 +35,26 @@ export async function main(ns: NS): Promise<void> {
   ns.disableLog("ALL");
   ns.print("----------Starting scheduler----------");
 
+  // maintain a copy of the ram pool array, so we can make edits
+  const ramPool = _.cloneDeep(args["ramPool"]) as string[];
+
   // for each server in the ram pool, kill all scripts
-  let stats = getStats(ns, args["ramPool"]);
-  for (const server of args["ramPool"]) {
+  let stats = getStats(ns, ramPool);
+  for (const server of ramPool) {
     if (ns.serverExists(server)) {
       ns.killall(server);
       ns.print(`Killed all scripts on ${server}`);
     }
   }
+
+  // set up periodically serviced functions
+  const timedCalls = [
+    {
+      lastCalled: Date.now(),
+      callEvery: 30 * 1000,
+      callback: async () => await printRamPoolStats(ns, stats, ramPool),
+    },
+  ] as TimedCall[];
 
   // start up the port and clear it
   const pHandle = ns.getPortHandle(args["port"]);
@@ -49,18 +63,30 @@ export async function main(ns: NS): Promise<void> {
 
   // handle incoming service requests
   const scheduledJobs = {} as Record<string, SchedulerRequest[]>;
-  (args["ramPool"] as string[]).forEach((s) => (scheduledJobs[s] = []));
+  ramPool.forEach((s) => (scheduledJobs[s] = []));
   ns.print("Ready for service requests!");
   while (true) {
     // update stats
-    stats = getStats(ns, args["ramPool"]);
-    const largestRamChunk = (args["ramPool"] as string[])
+    stats = getStats(ns, ramPool);
+    const largestRamChunk = ramPool
       .map((s) => stats.servers[s].maxRam)
       .reduce((a, b) => (a > b ? a : b));
 
     // remove old jobs to free up memory
-    for (const server of args["ramPool"]) {
-      _.remove(scheduledJobs[server], (job) => Date.now() > job.endTime);
+    for (const server of ramPool) {
+      _.remove(
+        scheduledJobs[server],
+        (job) => Date.now() > job.endTime + executeBufferTime
+      );
+    }
+
+    // if it's time, service these functions
+    const now = Date.now();
+    for (const timedCall of timedCalls) {
+      if (now - timedCall.lastCalled > timedCall.callEvery) {
+        await timedCall.callback();
+        timedCall.lastCalled = now;
+      }
     }
 
     // check for port data, discarding bad data and old messages
@@ -97,7 +123,7 @@ export async function main(ns: NS): Promise<void> {
         const scheduled = scheduleRequest(
           ns,
           stats,
-          args["ramPool"],
+          ramPool,
           scheduledJobs,
           parsed.data
         );
@@ -135,8 +161,11 @@ function scheduleRequest(
     let ramAvail = stats.servers[server].maxRam;
     for (const job of jobs[server]) {
       // if jobs would overlap, we subtract the job's ram from available ram
-      if (request.startTime < job.endTime || request.endTime > job.startTime) {
-        ramAvail -= request.ram;
+      if (
+        request.startTime - executeBufferTime < job.endTime ||
+        request.endTime + executeBufferTime > job.startTime
+      ) {
+        ramAvail -= job.ram;
       }
     }
     // ns.print(`${server} has ${ramAvail} during requested time`);
@@ -165,4 +194,21 @@ function scheduleRequest(
     success: bestHost !== "",
     host: bestHost,
   };
+}
+
+async function printRamPoolStats(ns: NS, stats: Stats, ramPool: string[]) {
+  const ram = { total: 0, used: 0 };
+
+  for (const server of ramPool) {
+    ram.total += stats.servers[server].maxRam;
+    ram.used += stats.servers[server].ramUsed;
+  }
+
+  ns.print("RAM POOL STATS: ");
+  ns.print(
+    `    RAM used: (${ns.nFormat(
+      ram.used / ram.total,
+      "0.00%"
+    )}) -->  ${ns.nFormat(ram.used, "0.0")} / ${ns.nFormat(ram.total, "0.0")}`
+  );
 }

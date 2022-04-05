@@ -47,7 +47,7 @@ export async function main(ns: NS): Promise<void> {
   // variables used in main loop
   const p1Handle = ns.getPortHandle(1);
   const hackTargets = [
-    "foodnstuff",
+    "nectar-net",
     "sigma-cosmetics",
     "joesguns",
     "hong-fang-tea",
@@ -60,7 +60,6 @@ export async function main(ns: NS): Promise<void> {
     "phantasy",
     "omega-net",
   ];
-  const claimedServers = [];
   stats = getStats(ns, ["home", ...hackTargets]);
 
   // sort hackTargets
@@ -107,8 +106,26 @@ export async function main(ns: NS): Promise<void> {
     }
 
     // launch scheduler once all scripts are deployed
-    if (flags.finishedDeploy && flags.schedulerPID === 0) {
-      flags.schedulerPID = ns.exec("/services/scheduler.js", "home", 1);
+    if (
+      flags.finishedDeploy &&
+      flags.upgradedServers &&
+      flags.schedulerPID === 0
+    ) {
+      const schedulerArgs = ["--port", 2];
+      ns.getPurchasedServers().forEach((s) => {
+        schedulerArgs.push("--ramPool");
+        schedulerArgs.push(s);
+      });
+      flags.schedulerPID = ns.exec(
+        "/services/scheduler.js",
+        "home",
+        1,
+        ...schedulerArgs
+      );
+      ns.print(
+        `Launched scheduler with PID: ${flags.schedulerPID} and args: ${schedulerArgs}`
+      );
+      await ns.sleep(1000);
     }
 
     // use pservs for hack daemon rather than basic hack
@@ -122,14 +139,7 @@ export async function main(ns: NS): Promise<void> {
       const t = stats.servers[hackTargets[0]];
 
       if (stats.player.hacking > t.requiredHackingSkill) {
-        const host1 = `pserv-${claimedServers.length + 1}` as string;
-        const host2 = `pserv-${claimedServers.length + 2}` as string;
-        ns.killall(host1);
-        ns.killall(host2);
-        claimedServers.push(host1);
-        claimedServers.push(host2);
-
-        ns.exec(
+        const pid = ns.exec(
           "daemons/hack-daemon.js",
           "home",
           1,
@@ -138,13 +148,12 @@ export async function main(ns: NS): Promise<void> {
           "--loop",
           "--ramBudget",
           1.0,
-          "--hosts",
-          host1,
-          "--hosts",
-          host2
+          "--useScheduler",
+          "--schedulerPort",
+          2
         );
         ns.print(
-          `Launching hack-daemon targeting ${t.hostname}, hosted on ${host1} and ${host2}`
+          `Launching hack-daemon targeting '${t.hostname}' using scheduler with PID: ${pid}`
         );
         hackTargets.shift();
       }
