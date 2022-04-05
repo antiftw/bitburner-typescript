@@ -235,18 +235,21 @@ export async function main(ns: NS): Promise<void> {
       );
       if (schedulerResponse.success && schedulerResponse.host) {
         scheduledJobs.push({ ...job, host: schedulerResponse.host });
+      } else {
+        break;
       }
     }
 
     // if we weren't able to schedule all the jobs, leave loop
     if (scheduledJobs.length < jobs.length) {
       ns.print("COULD NOT SCHEDULE ALL JOBS, SKIPPING TO NEXT LOOP");
+      await ns.sleep(scheduleBufferTime);
       continue;
     }
 
     // execute scheduled jobs
     scheduledJobs.sort((a, b) => a.startTime - b.startTime);
-    // ns.print(scheduledJobs);
+    const endBatchTime = scheduledJobs[scheduledJobs.length - 1].endTime;
     while (scheduledJobs.length > 0) {
       const job = scheduledJobs.shift() as ScheduledJob;
       ns.print(`Handling job: ${job.args[3].split(" ")[0]}`);
@@ -261,15 +264,8 @@ export async function main(ns: NS): Promise<void> {
       ns.disableLog("exec");
     }
 
-    // wait until jobs are finished, display stats
-    await sleepUntil(ns, endHackTime);
-    for (let i = 0; i < 5; i++) {
-      await sleepUntil(ns, endHackTime + executeBufferTime * i);
-      printServerStats(ns, stats.servers[args["target"]]);
-    }
-
-    // padding with sleep, sometimes we go too quickly
-    await ns.sleep(scheduleBufferTime);
+    // sleep until batch is finished executing
+    await sleepUntil(ns, endBatchTime + scheduleBufferTime);
   } while (args["loop"]);
 
   ns.print("----------End hack-daemon----------");
