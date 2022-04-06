@@ -321,12 +321,14 @@ async function runWithScheduler(
   );
 
   if (schedulerResponse.success) {
+    ns.enableLog("exec");
     const pid = ns.exec(
       script.name,
       schedulerResponse.host as string,
       threads,
       ...scriptArgs
     );
+    ns.disableLog("exec");
     ns.print(
       `Executing ${script.name} on ${schedulerResponse.host} for ${ns.nFormat(
         schedulerResponse.endTime - schedulerResponse.startTime,
