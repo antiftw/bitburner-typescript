@@ -61,14 +61,14 @@ export async function main(ns: NS): Promise<void> {
 
       if (pid > 0) {
         ns.print(
-          `Launched script with PID: ${pid}, for ${ns.tFormat(
+          `Launched script '${job.name}' with PID: ${pid}, for ${ns.tFormat(
             job.endTime - job.startTime
           )}`
         );
       } else {
         ns.print(`Job failed to launch`);
         ns.toast(
-          `Failed to launch ${job.scriptName} on ${job.host} with threads ${job.threads}`,
+          `Failed to launch ${job.name} on ${job.host} with threads ${job.threads}`,
           "warning"
         );
       }

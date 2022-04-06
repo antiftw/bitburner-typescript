@@ -49,6 +49,7 @@ export interface SchedulerResponse extends SchedulerRequest {
 }
 
 export interface Job {
+  name: string;
   scriptName: string;
   startTime: number;
   endTime: number;

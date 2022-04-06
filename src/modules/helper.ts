@@ -51,7 +51,7 @@ export function getStats(ns: NS, servers: string[] = []): Stats {
 
 export function msToTime(ms: number): string {
   const timeString = new Date(ms).toLocaleTimeString("en-US");
-  const msString = `.${String(ms % 1000).padStart(3, "0")}`;
+  const msString = ((ms % 1000) / 1000).toFixed(3).substring(1);
   const ts = [timeString.slice(0, -3), msString, timeString.slice(-3)].join("");
   return ts;
 }
