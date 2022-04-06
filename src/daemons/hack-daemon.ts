@@ -1,5 +1,5 @@
 import { NS, Server } from "@ns";
-import { getStats } from "/modules/helper.js";
+import { getStats, msToTime } from "/modules/helper.js";
 import {
   createMessage,
   getSchedulerMaxRam,
@@ -217,9 +217,9 @@ export async function main(ns: NS): Promise<void> {
     // output stats about jobs
     for (const job of jobs) {
       ns.print(
-        `${job.args[3].split(" ")[0]} with ${job.threads} threads. ${new Date(
+        `${job.args[3].split(" ")[0]} with ${job.threads} threads. ${msToTime(
           job.startTime
-        ).toISOString()} -> ${new Date(job.endTime).toISOString()}`
+        )} -> ${msToTime(job.endTime)}`
       );
     }
 
@@ -295,8 +295,7 @@ async function sleepUntil(
 ) {
   const sleepTime = Math.floor(timeMS - Date.now());
   if (sleepTime > 0) {
-    if (verbose)
-      ns.print(`Sleeping ${sleepTime} until ${new Date(timeMS).toISOString()}`);
+    if (verbose) ns.print(`Sleeping ${sleepTime} until ${msToTime(timeMS)}`);
     useAsleep ? await ns.asleep(sleepTime) : await ns.sleep(sleepTime);
   }
 }
@@ -397,7 +396,7 @@ async function growToMaxMoney(
         scripts.weakenScript,
         wTime,
         schedulerPort,
-        ["--target", target, "--id", `W - ${ns.nFormat(Date.now(), "0.0")}`]
+        ["--target", target, "--id", `W - ${msToTime(Date.now())}`]
       );
     } else {
       const gThreads = Math.floor(maxRamChunk / scripts.growScript.ram);
@@ -411,7 +410,7 @@ async function growToMaxMoney(
         scripts.growScript,
         gTime,
         schedulerPort,
-        ["--target", target, "--id", `G - ${ns.nFormat(Date.now(), "0.0")}`]
+        ["--target", target, "--id", `G - ${msToTime(Date.now())}`]
       );
     }
 
@@ -450,7 +449,7 @@ async function reduceToMinSecurity(
       scripts.weakenScript,
       wTime,
       schedulerPort,
-      ["--target", target, "--id", `W - ${ns.nFormat(Date.now(), "0.0")}`]
+      ["--target", target, "--id", `W - ${msToTime(Date.now())}`]
     );
 
     await ns.sleep(executeBufferTime);

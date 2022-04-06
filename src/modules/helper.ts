@@ -48,3 +48,10 @@ export function getStats(ns: NS, servers: string[] = []): Stats {
   });
   return stats;
 }
+
+export function msToTime(ms: number): string {
+  const timeString = new Date(ms).toLocaleTimeString("en-US");
+  const msString = `.${String(ms % 1000).padStart(3, "0")}`;
+  const ts = [timeString.slice(0, -3), msString, timeString.slice(-3)].join("");
+  return ts;
+}
