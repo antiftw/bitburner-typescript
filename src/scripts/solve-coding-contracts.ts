@@ -63,7 +63,11 @@ async function handleContract(
     if (solved) ns.toast(rewardSummary, "success", 10000);
 
     // write to file
-    await ns.write("/data/coding-contract-attempts.txt", contractSummary, "a");
+    await ns.write(
+      "/data/coding-contract-attempts.txt",
+      `${new Date(Date.now()).toISOString()} ${contractSummary}\n`,
+      "a"
+    );
   } else {
     ns.print(
       `No solver for ${contractType}, not attempting ${host} ${filename}`
