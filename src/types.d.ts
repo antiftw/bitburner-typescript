@@ -1,75 +1,136 @@
-import { Player, Server } from "@ns";
+import ExtendedHacknetServer from "./object/server/ExtendedHacknetServer";
+import Configurator from "./service/core/Configurator";
+import { FileManager } from "./service/core/FileManager";
+import { ExceptionHandler } from "./service/diagnostics/ExceptionHandler";
+import Logger from "./service/diagnostics/Logger";
 
-export interface TimedCall {
-  lastCalled: number;
-  callEvery: number;
-  callback: () => Promise<void>;
+export interface IServer {
+    name: string;
+    rootAccess: boolean;
+    usedRam: number;
+    maxRam: number;
+    money: number;
+    maxMoney: number;
+    cores:number;
 }
 
-export interface Flags {
-  finishedDeploy: boolean;
-  purchasedServers: boolean;
-  launchedUpgrades: boolean;
-  upgradedServers: boolean;
-  launchedCorpDaemon: boolean;
-  schedulerPID: number;
-  timedCalls: TimedCall[];
+export interface IBotnetServerData {
+    maxRam: number;
+    maxMoney: number;
+    rootAccess: boolean;
+    usedRam: number;
+    money: number;
 }
 
-export interface HUDRow {
-  header: string;
-  fValue: string;
+export interface IHacknetServerData {
+    level: number;
+    ram:number;
+    isServer:boolean;
+    production:number;
+    totalProduction:number;
+    timeOnline:number;
+    cache:number;
+    hashCapacity:number;
+    cores:number;
 }
 
-export interface Stats {
-  player: Player;
-  servers: Record<string, Server>;
+export interface IPublicServerData {
+    maxRam: number;
+    maxMoney: number;
+    rootAccess: boolean;
+    usedRam: number;
+    money: number;
+    portsRequired: number;
+    requiredHackingLevel: number;
+    security: number;
+    minSecurity: number;
 }
 
-export interface ScriptInfo {
-  name: string;
-  ram: number;
+export interface IException{
+    message: string; 
+    type: string;
 }
 
-export interface ScriptsInfo {
-  hackScript: ScriptInfo;
-  growScript: ScriptInfo;
-  weakenScript: ScriptInfo;
+export interface IPort{
+    id: number;
+    purpose: string;
 }
 
-export interface SchedulerRequest {
-  ram: number;
-  startTime: number;
-  endTime: number;
+export interface IConfiguration{
+    name: string;
+    category: string;
+    value: string | number | boolean  | string[] | number[] | boolean[];
 }
 
-export interface SchedulerResponse extends SchedulerRequest {
-  success: boolean;
-  host?: string;
+export interface ISimpleJSONReturn {
+    success: boolean,
+    message: string,
+    value?: any,
 }
 
-export interface Job {
-  scriptName: string;
-  startTime: number;
-  endTime: number;
-  threads: number;
-  ram: number;
-  args: string[];
+export interface IScanner{
+    ns: NS;
+    verbose: number;
+    context: string;
+    servers: Array<IServer>;
+    structureFile: string;
+    logger: Logger;
+    cfg: Configurator;
+    eh: ExceptionHandler;
+    file: FileManager;
+
+    init(): ISimpleJSONReturn;
+    execute(): Promise<ISimpleJSONReturn>;
+    scanNetwork(exclude: string[]): ISimpleJSONReturn;
+    write(): Promise<ISimpleJSONReturn>;
 }
 
-export interface ScheduledJob extends Job {
-  host: string;
+export interface IScript {
+    name: string;
+    file: string;
+    ram: number;
 }
 
-export interface Message<T> {
-  hash: number;
-  timeSent: number;
-  source: string;
-  text: string;
-  data: T;
+export interface ICrack {
+    name: string;
+    text: string;
 }
 
-export interface MessageResponse<T> {
-  sourceMessage: Message<T>;
-  data: T;
+export interface IDisplayOptions {
+    rootOnly: boolean;
+    hackable: boolean;
+    botnet: boolean;
+    public: boolean;
+    hacknet: boolean;
+    query: string;
+    sortBy: string;
+}
+
+export interface IServerManagerAction {
+    name: string;
+    price: number;
+    node?: ExtendedHacknetServer
+}
+
+export interface IServerManagerPerformedAction {
+    name: string;
+    amount: number;
+    cost: number;
+}
+
+
+export interface IMainDaemonArguments {
+    resupplyAmount: number;
+    forceRefresh: boolean;
+}
+
+export interface IMainDaemonStep {
+    file: string;
+    verbosity: number;
+    enabled: boolean;
+}
+
+export interface IBatchVariables{
+    batches: number;
+    delay: number;
 }

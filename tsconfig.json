@@ -1,5 +1,5 @@
 {
-  "include": ["NetscriptDefinitions.d.ts", "global.d.ts", "src/**/*"],
+  "include": ["NetscriptDefinitions.d.ts", "global.d.ts", "src/**/*", ".vscode/code-original-repo", "code-original-repo"],
   "compilerOptions": {
     "module": "esnext",
     "target": "esnext",
